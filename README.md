@@ -17,9 +17,9 @@ Once the connection is established transmit data.
 All BLE connections are equipped with AES-128 end-to-end encryption. This prevents data from being read if it's ever intercepted.
 
 ## Keywords
-*** Profile is a specification of how a device works in a particular application. A device can implement more than one profile.
-**** The GATT profile is a general specification for sending and receiving short pieces of data known as “attributes” over a BLE link. Using this profile we can transmit data between BLE devices.
-**** A characteristic contains a single value and optional descriptors that describe the characteristic’s value.
-**** Descriptors are defined attributes that describe a characteristic value. They can be used to describe the characteristic’s features or to control certain behaviors of the characteristic.
-**** Service contains a collection of characteristics.
-**** Advertisement means when a BLE peripheral device broadcasts packets to every device around it. The receiving device can then act on this information or connect to receive more information.
+**Profile:** is a specification of how a device works in a particular application. A device can implement more than one profile.
+**GATT:** profile is a general specification for sending and receiving short pieces of data known as “attributes” over a BLE link. Using this profile we can transmit data between BLE devices.
+**characteristic:** contains a single value and optional descriptors that describe the characteristic’s value.
+**Descriptors:** are defined attributes that describe a characteristic value. They can be used to describe the characteristic’s features or to control certain behaviors of the characteristic.
+**Service:** contains a collection of characteristics.
+**Advertisement:** means when a BLE peripheral device broadcasts packets to every device around it. The receiving device can then act on this information or connect to receive more information.
