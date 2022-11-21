@@ -7,15 +7,11 @@ Bluetooth is a short-range wireless technology standard. It utilizes UHF radio w
 Bluetooth Low Energy is based on Bluetooth. It was released in 2011, and it is also referred to as Bluetooth Smart and Bluetooth 4.0.BLE is designed to offer many of the same features as Bluetooth but focusing on low power. As a result, it is not as fast as Bluetooth and is not suitable for transferring large files. But it is ideal for transferring small amounts of data with minimal power consumption. Android provides built-in platform support for Bluetooth Low Energy (BLE) in the central role and provides APIs that apps can use to discover devices, query for services, and transmit information. BLE APIs help you to communicate with BLE devices smoothly with less battery consumption.
 
 ### Fundamentals of this app
-The required permissions in Manifest.xml.
-
-It must first form a channel of communication.
-
-Then access BluetoothAdapter and scan for available BLE devices nearby.
-
-Once a device is found, the capabilities of the BLE device are discovered by connecting to the GATT server on the BLE device.
-
-Once the connection is established transmit data.
+- The required permissions in Manifest.xml.
+- It must first form a channel of communication.
+- Then access BluetoothAdapter and scan for available BLE devices nearby.
+- Once a device is found, the capabilities of the BLE device are discovered by connecting to the GATT server on the BLE device.
+- Once the connection is established transmit data.
 
 ### How Secure Is Bluetooth Low Energy?
 
