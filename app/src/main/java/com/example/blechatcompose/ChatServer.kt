@@ -120,6 +120,41 @@ object ChatServer {
         }
     }
 
+    private fun startAdvertisement() {
+        advertiser = adapter.bluetoothLeAdvertiser
+        if (advertiseCallback == null) {
+            advertiseCallback = DeviceAdvertiseCallback()
+            advertiser?.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+        }
+    }
+
+    private class DeviceAdvertiseCallback : AdvertiseCallback() {
+        override fun onStartFailure(errorCode: Int) {
+            super.onStartFailure(errorCode)
+            val errorMessage = "failed with error: $errorCode"
+            Log.i(TAG,errorMessage)
+        }
+
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            super.onStartSuccess(settingsInEffect)
+            Log.d(TAG, "successfully started")
+        }
+    }
+
+    private fun buildAdvertiseSettings(): AdvertiseSettings {
+        return AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+            .setTimeout(0)
+            .build()
+    }
+
+    private fun buildAdvertiseData(): AdvertiseData {
+        val dataBuilder = AdvertiseData.Builder()
+            .addServiceUuid(ParcelUuid(SERVICE_UUID))
+            .setIncludeDeviceName(true)
+        return dataBuilder.build()
+    }
+
 }
 
 private const val TAG = "ChatServerTAG"
