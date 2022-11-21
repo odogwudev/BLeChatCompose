@@ -24,9 +24,12 @@ object ChatServer {
     private var adapter: BluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
 
+
     fun startServer(app: Application, activity: ComponentActivity) {
         bluetoothManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         adapter = bluetoothManager.adapter
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        takeResultListener.launch(intent)
         if (!adapter.isEnabled) {
             _requestEnableBluetooth.value = true
 
@@ -49,6 +52,71 @@ object ChatServer {
             _requestEnableBluetooth.value = false
             setupGattServer(app)
             startAdvertisement()
+        }
+    }
+
+    private fun setupGattServer(app: Application) {
+        gattServerCallback = GattServerCallback()
+
+        gattServer = bluetoothManager.openGattServer(
+            app,
+            gattServerCallback
+        ).apply {
+            addService(setupGattService())
+        }
+    }
+
+
+    private fun setupGattService(): BluetoothGattService {
+        val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
+
+        val messageCharacteristic = BluetoothGattCharacteristic(
+            MESSAGE_UUID,
+            BluetoothGattCharacteristic.PROPERTY_WRITE,
+            BluetoothGattCharacteristic.PERMISSION_WRITE
+        )
+        service.addCharacteristic(messageCharacteristic)
+        return service
+    }
+
+    private class GattServerCallback : BluetoothGattServerCallback() {
+        override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+            super.onConnectionStateChange(device, status, newState)
+            val isSuccess = status == BluetoothGatt.GATT_SUCCESS
+            val isConnected = newState == BluetoothProfile.STATE_CONNECTED
+            if (isSuccess && isConnected) {
+                setCurrentChatConnection(device)
+            } else {
+                _deviceConnection.postValue(DeviceConnectionState.Disconnected)
+            }
+        }
+
+        override fun onCharacteristicWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            characteristic: BluetoothGattCharacteristic,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?
+        ) {
+            super.onCharacteristicWriteRequest(
+                device,
+                requestId,
+                characteristic,
+                preparedWrite,
+                responseNeeded,
+                offset,
+                value
+            )
+            if (characteristic.uuid == MESSAGE_UUID) {
+                gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+                val message = value?.toString(Charsets.UTF_8)
+
+                message?.let {
+                    _messages.postValue(Message.RemoteMessage(it))
+                }
+            }
         }
     }
 
