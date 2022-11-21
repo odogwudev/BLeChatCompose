@@ -60,4 +60,9 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_ui_version"
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_ui_version"
     debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_ui_version"
+
+    //for permission handling
+    implementation "com.google.accompanist:accompanist-permissions:0.25.0"
+    implementation 'com.karumi:dexter:6.2.3'
+    implementation 'androidx.compose.runtime:runtime-livedata:1.1.1'
 }
