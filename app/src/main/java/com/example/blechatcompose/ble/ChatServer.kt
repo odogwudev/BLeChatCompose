@@ -1,5 +1,4 @@
-package com.example.blechatcompose
-
+package com.example.blechatcompose.ble
 import android.app.Application
 import android.bluetooth.*
 import android.bluetooth.le.AdvertiseCallback
@@ -16,46 +15,81 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 
+private const val TAG = "ChatServerTAG"
+
 object ChatServer {
+
 
     private var app: Application? = null
     private lateinit var bluetoothManager: BluetoothManager
 
     private var adapter: BluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
+    private var advertiser: BluetoothLeAdvertiser? = null
+    private var advertiseCallback: AdvertiseCallback? = null
+    private var advertiseSettings: AdvertiseSettings = buildAdvertiseSettings()
+    private var advertiseData: AdvertiseData = buildAdvertiseData()
+
+    private val _messages = MutableLiveData<Message>()
+    val messages = _messages as LiveData<Message>
 
 
-    fun startServer(app: Application, activity: ComponentActivity) {
+    private var gattServer: BluetoothGattServer? = null
+    private var gattServerCallback: BluetoothGattServerCallback? = null
+
+    private var gattClient: BluetoothGatt? = null
+    private var gattClientCallback: BluetoothGattCallback? = null
+
+    private var currentDevice: BluetoothDevice? = null
+
+    private val _deviceConnection = MutableLiveData<DeviceConnectionState>()
+    val deviceConnection = _deviceConnection as LiveData<DeviceConnectionState>
+
+    private var gatt: BluetoothGatt? = null
+    private var messageCharacteristic: BluetoothGattCharacteristic? = null
+
+    fun startServer(app: Application) {
         bluetoothManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         adapter = bluetoothManager.adapter
-        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-        takeResultListener.launch(intent)
-        if (!adapter.isEnabled) {
-            _requestEnableBluetooth.value = true
-
-            val takeResultListener =
-                activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-
-                    if (result.resultCode == -1) {
-                        Toast.makeText(activity, "Bluetooth ON", Toast.LENGTH_LONG).show()
-                        setupGattServer(app)
-                        startAdvertisement()
-                    } else {
-                        Toast.makeText(activity, "Bluetooth OFF", Toast.LENGTH_LONG).show()
-                    }
-                }
-
-            val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            takeResultListener.launch(intent)
-
-        } else {
-            _requestEnableBluetooth.value = false
-            setupGattServer(app)
-            startAdvertisement()
-        }
+        setupGattServer(app)
+        startAdvertisement()
     }
 
-    private fun setupGattServer(app: Application) {
+    fun stopServer() {
+        stopAdvertising()
+    }
+
+
+    fun setCurrentChatConnection(device: BluetoothDevice) {
+        currentDevice = device
+        _deviceConnection.postValue(DeviceConnectionState.Connected(device))
+        connectToChatDevice(device)
+    }
+
+    private fun connectToChatDevice(device: BluetoothDevice) {
+        gattClientCallback = GattClientCallback()
+        gattClient = device.connectGatt(app, false, gattClientCallback)
+    }
+
+    fun sendMessage(message: String): Boolean {
+        messageCharacteristic?.let { characteristic ->
+            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+
+            val messageBytes = message.toByteArray(Charsets.UTF_8)
+            characteristic.value = messageBytes
+            gatt?.let {
+                val success = it.writeCharacteristic(messageCharacteristic)
+                if (success) {
+                    _messages.postValue(Message.LocalMessage(message))
+                }
+            }
+        }
+        return false
+    }
+
+
+    fun setupGattServer(app: Application) {
+        Log.i(TAG,"setupGattServer")
         gattServerCallback = GattServerCallback()
 
         gattServer = bluetoothManager.openGattServer(
@@ -66,17 +100,50 @@ object ChatServer {
         }
     }
 
-
     private fun setupGattService(): BluetoothGattService {
         val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
-
         val messageCharacteristic = BluetoothGattCharacteristic(
             MESSAGE_UUID,
             BluetoothGattCharacteristic.PROPERTY_WRITE,
             BluetoothGattCharacteristic.PERMISSION_WRITE
         )
         service.addCharacteristic(messageCharacteristic)
+
         return service
+    }
+
+    fun startAdvertisement() {
+        advertiser = adapter.bluetoothLeAdvertiser
+
+        if (advertiseCallback == null) {
+            advertiseCallback = DeviceAdvertiseCallback()
+
+            advertiser?.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+        }
+    }
+
+    private fun stopAdvertising() {
+        Log.d(TAG, "Stopping Advertising with advertiser $advertiser")
+        if(advertiseCallback != null)
+            advertiser?.stopAdvertising(advertiseCallback)
+        advertiseCallback = null
+    }
+
+
+    private fun buildAdvertiseData(): AdvertiseData {
+        val dataBuilder = AdvertiseData.Builder()
+            .addServiceUuid(ParcelUuid(SERVICE_UUID))
+            .setIncludeDeviceName(true)
+
+        return dataBuilder.build()
+    }
+
+
+    private fun buildAdvertiseSettings(): AdvertiseSettings {
+        return AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+            .setTimeout(0)
+            .build()
     }
 
     private class GattServerCallback : BluetoothGattServerCallback() {
@@ -112,7 +179,6 @@ object ChatServer {
             if (characteristic.uuid == MESSAGE_UUID) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
                 val message = value?.toString(Charsets.UTF_8)
-
                 message?.let {
                     _messages.postValue(Message.RemoteMessage(it))
                 }
@@ -120,51 +186,12 @@ object ChatServer {
         }
     }
 
-    private fun startAdvertisement() {
-        advertiser = adapter.bluetoothLeAdvertiser
-        if (advertiseCallback == null) {
-            advertiseCallback = DeviceAdvertiseCallback()
-            advertiser?.startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
-        }
-    }
-
-    private class DeviceAdvertiseCallback : AdvertiseCallback() {
-        override fun onStartFailure(errorCode: Int) {
-            super.onStartFailure(errorCode)
-            val errorMessage = "failed with error: $errorCode"
-            Log.i(TAG,errorMessage)
-        }
-
-        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            super.onStartSuccess(settingsInEffect)
-            Log.d(TAG, "successfully started")
-        }
-    }
-
-    private fun buildAdvertiseSettings(): AdvertiseSettings {
-        return AdvertiseSettings.Builder()
-            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
-            .setTimeout(0)
-            .build()
-    }
-
-    private fun buildAdvertiseData(): AdvertiseData {
-        val dataBuilder = AdvertiseData.Builder()
-            .addServiceUuid(ParcelUuid(SERVICE_UUID))
-            .setIncludeDeviceName(true)
-        return dataBuilder.build()
-    }
-
-    private fun connectToChatDevice(device: BluetoothDevice) {
-        gattClientCallback = GattClientCallback()
-        gattClient = device.connectGatt(app, false, gattClientCallback)
-    }
-
     private class GattClientCallback : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
             val isSuccess = status == BluetoothGatt.GATT_SUCCESS
             val isConnected = newState == BluetoothProfile.STATE_CONNECTED
+
             if (isSuccess && isConnected) {
                 gatt.discoverServices()
             }
@@ -175,16 +202,22 @@ object ChatServer {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 gatt = discoveredGatt
                 val service = discoveredGatt.getService(SERVICE_UUID)
-                messageCharacteristic = service.getCharacteristic(MESSAGE_UUID)
+                if(service != null)
+                    messageCharacteristic = service.getCharacteristic(MESSAGE_UUID)
             }
         }
     }
 
-    private fun stopAdvertising() {
-        advertiser?.stopAdvertising(advertiseCallback)
-        advertiseCallback = null
+    private class DeviceAdvertiseCallback : AdvertiseCallback() {
+        override fun onStartFailure(errorCode: Int) {
+            super.onStartFailure(errorCode)
+            val errorMessage = "Advertise failed with error: $errorCode"
+            Log.d(TAG, "failed $errorMessage")
+        }
+
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            super.onStartSuccess(settingsInEffect)
+            Log.d(TAG, "successfully started")
+        }
     }
-
 }
-
-private const val TAG = "ChatServerTAG"
