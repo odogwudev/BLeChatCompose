@@ -25,10 +25,40 @@ class MainActivity : ComponentActivity() {
             BLeChatComposeTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp),
                     color = MaterialTheme.colors.background
                 ) {
-                    Greeting("Android")
+                    val deviceScanningState by viewModel.viewState.observeAsState()
+
+                    val deviceConnectionState by ChatServer.deviceConnection.observeAsState()
+
+                    var isChatOpen by remember {
+                        mutableStateOf(false)
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (deviceScanningState != null && !isChatOpen || deviceConnectionState == DeviceConnectionState.Disconnected) {
+                            Column {
+                                Text(
+                                    text = "Choose a device to chat with:",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                DeviceScanCompose.DeviceScan(deviceScanViewState = deviceScanningState!!) {
+                                    isChatOpen = true
+                                }
+                            }
+
+                        } else {
+                            ChatCompose.Chats()
+                        }
+                    }
                 }
             }
         }
@@ -56,18 +86,5 @@ class MainActivity : ComponentActivity() {
                 }
             })
             .check()
-    }
-}
-
-@Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    BLeChatComposeTheme {
-        Greeting("Android")
     }
 }
