@@ -180,6 +180,11 @@ object ChatServer {
         }
     }
 
+    private fun stopAdvertising() {
+        advertiser?.stopAdvertising(advertiseCallback)
+        advertiseCallback = null
+    }
+
 }
 
 private const val TAG = "ChatServerTAG"
