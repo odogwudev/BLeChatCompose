@@ -155,6 +155,31 @@ object ChatServer {
         return dataBuilder.build()
     }
 
+    private fun connectToChatDevice(device: BluetoothDevice) {
+        gattClientCallback = GattClientCallback()
+        gattClient = device.connectGatt(app, false, gattClientCallback)
+    }
+
+    private class GattClientCallback : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            super.onConnectionStateChange(gatt, status, newState)
+            val isSuccess = status == BluetoothGatt.GATT_SUCCESS
+            val isConnected = newState == BluetoothProfile.STATE_CONNECTED
+            if (isSuccess && isConnected) {
+                gatt.discoverServices()
+            }
+        }
+
+        override fun onServicesDiscovered(discoveredGatt: BluetoothGatt, status: Int) {
+            super.onServicesDiscovered(discoveredGatt, status)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                gatt = discoveredGatt
+                val service = discoveredGatt.getService(SERVICE_UUID)
+                messageCharacteristic = service.getCharacteristic(MESSAGE_UUID)
+            }
+        }
+    }
+
 }
 
 private const val TAG = "ChatServerTAG"
