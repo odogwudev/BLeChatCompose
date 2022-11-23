@@ -1,4 +1,5 @@
 package com.example.blechatcompose.ble
+
 import android.app.Application
 import android.bluetooth.*
 import android.bluetooth.le.AdvertiseCallback
@@ -14,6 +15,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.example.blechatcompose.data.model.Message
+import com.example.blechatcompose.data.states.DeviceConnectionState
+import com.example.blechatcompose.utils.MESSAGE_UUID
+import com.example.blechatcompose.utils.SERVICE_UUID
 
 private const val TAG = "ChatServerTAG"
 
@@ -89,7 +94,7 @@ object ChatServer {
 
 
     fun setupGattServer(app: Application) {
-        Log.i(TAG,"setupGattServer")
+        Log.i(TAG, "setupGattServer")
         gattServerCallback = GattServerCallback()
 
         gattServer = bluetoothManager.openGattServer(
@@ -124,7 +129,7 @@ object ChatServer {
 
     private fun stopAdvertising() {
         Log.d(TAG, "Stopping Advertising with advertiser $advertiser")
-        if(advertiseCallback != null)
+        if (advertiseCallback != null)
             advertiser?.stopAdvertising(advertiseCallback)
         advertiseCallback = null
     }
@@ -202,7 +207,7 @@ object ChatServer {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 gatt = discoveredGatt
                 val service = discoveredGatt.getService(SERVICE_UUID)
-                if(service != null)
+                if (service != null)
                     messageCharacteristic = service.getCharacteristic(MESSAGE_UUID)
             }
         }
