@@ -1,6 +1,7 @@
 package com.example.blechatcompose
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.os.Bundle
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
         ChatServer.stopServer()
     }
 
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -143,3 +145,4 @@ class MainActivity : ComponentActivity() {
         }
 
     }
+}
